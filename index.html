@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Facebook SDK Test</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <script type="text/javascript" src="js/jquery-1.11.0.js"></script>
+
+        <style>
+            .logged-in .btn-login { display: none; }
+            .not-logged-in .btn-logout { display: none; }
+            .not-logged-in .btn-post { display: none; }
+            .not-logged-in .facebook-status { display: none; }
+            .not-authorized .btn-disconnect { display: none; }
+        </style>
+
+    </head>
+    <body>
+
+        <h1>Fun Internet Game</h1>
+        <h2>Test of the Facebook Javascript SDK</h2>
+
+        <p><span class="current-status">Waiting for status...</span></p>
+        <div class="options">
+            <button class="btn-login">Login</button>
+            <button class="btn-logout">Logout</button>
+            <button class="btn-disconnect">Disconnect Entirely</button>
+            <input type="text" class="facebook-status" name="fb-status" placeholder="enter a status">
+            <button class="btn-post">Post a status</button>
+        </div><br/>
+
+        <div id="fb-root"></div>
+
+        <!-- Like button code below -->
+        <div class="fb-like" data-send="true" data-width="450" data-show-faces="true"> </div>
+
+        <!-- Javascript Below -->
+        <script>
+
+        // Async init function
+        window.fbAsyncInit = function() {
+
+            // init the Facebook JavaScript SDK - this has to come first.
+            FB.init({
+                appId       : 'xxxxxxxxxxx', // well, get your own
+                channelUrl  : null,
+                status      : false, // can check login state right away, but we have that big handler below so we dont need it. 
+                cookie      : false,
+                xfbml       : true // like buttons/social plugins, or nah?
+            });
+
+            // get login status right away on page load
+            FB.getLoginStatus(function(response) {
+                if (response.status === 'connected') {
+                    // alright we're in the success response. How do you want to update your app?
+                    updateState('logged-in');
+                    getMyInfo();
+                } else if (response.status === 'not_authorized') {
+                    // not authorized - no account has granted this app access
+                    $('.current-status').text('You are not currently logged in. Even if you\'re connected to facebook in another tab, you haven\'t granted this app access. Whatcha waiting for?');
+                   updateState('not-logged-in not-authorized');
+                } else {
+                    // not_logged_in - simple as that
+                    $('.current-status').text('You are not currently logged in.');
+                   updateState('not-logged-in');
+                }
+            });
+
+        };
+
+
+        function updateState(state) {
+            $('body').removeClass('logged-in not-logged-in not-authorized').addClass(state);
+        }
+
+        // Login with default BASIC permissions
+        function login() { 
+            FB.login(function(response) {
+                if (response.authResponse) {
+                    // cool you got something. now do stuff:
+                    getMyInfo();
+                    updateState('logged-in');
+                } else {
+                    // nope
+                }
+            });
+        }
+
+        function logout() {
+            FB.logout(function(response){
+                updateState('not-logged-in');
+                $('.current-status').text('You are not currently logged in.');
+            });
+        }
+
+        function deleteAccount() {
+            FB.api(
+                "/me/permissions",      // check out these params! go to the endpoint /me/permissions
+                "DELETE",               // ...and apply that delete action before someone else does.
+                function (response) {
+                  if (response && !response.error) {
+                    updateState('not-authorized not-logged-in');
+                    $('.current-status').text('You have revoked access. Please refresh the page before you do anything crazy.');
+                    console.log('nuke it from orbit. it\'s the only way to be sure');
+                  }
+                }
+            );
+        }
+
+        function getMyInfo() {
+            // Access the api endpoint about "me", the logged in user. default method is "GET"
+            FB.api('/me', function(response) {
+                $('.current-status').text('☆★☆★ You are currently logged in as ' + response.name + '. ★☆★☆');
+                console.log('Hello ' + response.name + '.');
+            });
+        }
+
+        function makeAPost(){
+            var newStatus = $('.facebook-status').val();
+            if(!newStatus) {
+                alert('please enter a status to post');
+                return;
+            }
+
+            // Here's the login function again! This time it's for additional permissions
+             FB.login(function(response) { 
+               // handle the response
+                FB.api('/me/feed', 'post', { message: newStatus }, function(response) {
+                  if (!response) {
+                    console.log('no response');
+                  } else if (response.error) {
+                    console.log('Error occured');
+                  } else {
+                    console.log('Post ID: ' + response.id);
+                  }
+                });
+             }, {scope: 'publish_actions'});
+             
+        }
+
+        // This is the self-initializing function
+        (function(d, s, id){
+             var js, fjs = d.getElementsByTagName(s)[0];
+             if (d.getElementById(id)) {return;}
+             js = d.createElement(s); js.id = id;
+             js.src = "//connect.facebook.net/en_US/all.js";
+             fjs.parentNode.insertBefore(js, fjs);
+       }(document, 'script', 'facebook-jssdk'));
+
+
+        // Event Listeners
+
+        $('.btn-login').on('click', function(){
+            login();
+        });
+        $('.btn-logout').on('click', function(){
+            logout();
+        });
+        $('.btn-disconnect').on('click', function(){
+            deleteAccount();
+        });
+         $('.btn-post').on('click', function(){
+            makeAPost();
+        });
+
+
+        // Example of retrieving a post
+        FB.api('10101050921746296', 'get', function(response){ console.log(response) } );
+        </script>
+
+
+    </body>
+</html>
